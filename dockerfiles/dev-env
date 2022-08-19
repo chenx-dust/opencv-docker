@@ -1,0 +1,2 @@
+FROM opencv-docker:build
+RUN cd /build && make install

@@ -8,6 +8,8 @@ CONTRIB_SOURCE_URL=" https://github.com/opencv/opencv_contrib/archive/${VERSION}
 # RELEASE_JSON_URL="https://api.github.com/repos/opencv/opencv/releases/tags/${VERSION}"
 BASE_CONTAINER="ubuntu:20.04"
 CMAKE_ENV="env.cfg"
+APT_MIRROR_ARCHIVE="mirrors.tuna.tsinghua.edu.cn"
+APT_MIRROR_SECURE="mirrors.tuna.tsinghua.edu.cn"
 BUILD_THREAD=20
 PWD=$(pwd)
 
@@ -19,7 +21,8 @@ STEP=0
 #       * Add git version detect.
 #       * Add apt mirror.
 #       * Add proxy.
-#       * Add cmake config.
+#       * Add cuda support.
+#       * Exit when failing to exec in container
 
 DEPENDENCY_LIST="unzip wget docker"
 
@@ -34,6 +37,7 @@ function zip_clean() {
 }
 
 function env_clean() {
+    show_step "Cleaning environment..."
     rm -rf "opencv-${VERSION}"
     rm -rf "opencv_contrib-${VERSION}"
     rm -rf "build"
@@ -75,20 +79,37 @@ download "opencv-${VERSION}.zip" ${SOURCE_URL}
 download "opencv_contrib-${VERSION}.zip" ${CONTRIB_SOURCE_URL}
 echo
 
-show_step "Cleaning environment..."
 env_clean
 
 show_step "Unzipping source..."
-unzip "opencv-${VERSION}.zip"
-unzip "opencv_contrib-${VERSION}.zip"
+unzip "opencv-${VERSION}.zip" > /dev/null
+unzip "opencv_contrib-${VERSION}.zip" > /dev/null
 
-show_step "Building with container..."
-echo "Building..."
+# show_step "Building with container..."
+# echo "Building..."
+# chmod +x build/build.sh
+# # docker run --rm -it \
+# #     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
+# #     -e OD_BUILD_THREADS=$BUILD_THREADS \
+# #     $BASE_CONTAINER /bin/bash -c /build/build.sh
+
+show_step "Building basic image..."
+# docker build -t opencv-docker:build -f dockerfiles/build-env .
+
+show_step "Building OpenCV"
 mkdir build
 cp $CMAKE_ENV build/env.cfg
-cp container.sh build/container.sh
-chmod +x build/container.sh
-docker run --rm -it \
+cp container_build.sh build/build.sh
+docker run --rm -it --privileged -u $(id -u) \
     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
     -e OD_BUILD_THREADS=$BUILD_THREADS \
-    $BASE_CONTAINER /bin/bash -c /build/container.sh
+    opencv-docker:build /bin/bash -c /build/build.sh
+
+show_step "Building development environment..."
+docker build -t opencv-docker:latest -t opencv-docker:${SCRIPT_VERSION}-${VERSION} -f dockerfiles/build-env .
+
+echo
+show_step "All done."
+echo
+echo "To use development environment, please excute:"
+echo -e "\tdocker run opencv-docker"

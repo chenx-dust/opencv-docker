@@ -7,6 +7,7 @@ SOURCE_URL="https://github.com/opencv/opencv/archive/${VERSION}.zip"
 CONTRIB_SOURCE_URL=" https://github.com/opencv/opencv_contrib/archive/${VERSION}.zip"
 # RELEASE_JSON_URL="https://api.github.com/repos/opencv/opencv/releases/tags/${VERSION}"
 BASE_CONTAINER="ubuntu:20.04"
+CMAKE_ENV="env.cfg"
 BUILD_THREAD=20
 PWD=$(pwd)
 
@@ -84,7 +85,10 @@ unzip "opencv_contrib-${VERSION}.zip"
 show_step "Building with container..."
 echo "Building..."
 mkdir build
+cp $CMAKE_ENV build/env.cfg
 cp container.sh build/container.sh
 chmod +x build/container.sh
-docker run --rm -it -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv \
-    -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib $BASE_CONTAINER /bin/bash -c /build/container.sh
+docker run --rm -it \
+    -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
+    -e OD_BUILD_THREADS=$BUILD_THREADS \
+    $BASE_CONTAINER /bin/bash -c /build/container.sh

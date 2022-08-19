@@ -4,8 +4,6 @@
 # export TZ=Asia/Shanghai
 export CCACHE_DIR=/build/.ccache
 
-OD_CMAKE_ENV=$(cat /build/env.cfg)
-
 # sed -i s@/archive.ubuntu.com/@/mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list
 # sed -i s@/security.ubuntu.com/@/mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list
 
@@ -20,3 +18,4 @@ OD_CMAKE_ENV=$(cat /build/env.cfg)
 cd /build
 cmake -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules $OD_CMAKE_ENV /opencv
 make -j$OD_BUILD_THREADS
+make install

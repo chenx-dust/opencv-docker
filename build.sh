@@ -1,18 +1,12 @@
 #!/bin/bash
 
-SCRIPT_VERSION="v0.1"
-DEFAULT_VERSION="4.5.4"
-VERSION=$DEFAULT_VERSION
-SOURCE_URL="https://github.com/opencv/opencv/archive/${VERSION}.zip"
-CONTRIB_SOURCE_URL=" https://github.com/opencv/opencv_contrib/archive/${VERSION}.zip"
-# RELEASE_JSON_URL="https://api.github.com/repos/opencv/opencv/releases/tags/${VERSION}"
-BASE_CONTAINER="ubuntu:20.04"
-CMAKE_ENV="env.cfg"
-APT_MIRROR_ARCHIVE="mirrors.tuna.tsinghua.edu.cn"
-APT_MIRROR_SECURE="mirrors.tuna.tsinghua.edu.cn"
-BUILD_THREAD=20
-PWD=$(pwd)
+if ! source $1 1> /dev/null 2> /dev/null; then
+    echo "ERROR: Wrong config." >&2
+    echo "Usage: clean.sh CONFIG_PATH"
+    exit -3
+fi
 
+PWD="$(pwd)"
 STEP=0
 
 ################################
@@ -31,27 +25,12 @@ function show_step() {
     echo "STEP ${STEP}: $1"
 }
 
-function zip_clean() {
-    rm "opencv-${VERSION}.zip"
-    rm "opencv_contrib-${VERSION}.zip"
-}
-
-function env_clean() {
-    show_step "Cleaning environment..."
-    rm -rf "opencv-${VERSION}"
-    rm -rf "opencv_contrib-${VERSION}"
-    rm -rf "build"
-}
-
-function check_dependency() {
-    echo "Checking dependency..."
-    for i in $DEPENDENCY_LIST; do
-        if ! type $i 1> /dev/null 2> /dev/null; then
-            echo "ERROR: Command \"$i\" not found." >&2
-            echo "This script depends on:" >&2
-            echo -e "\t${DEPENDENCY_LIST}" >&2
-            exit -1
-    fi;done
+function exec_check() {
+    RTN=$?
+    if [ $RTN != 0 ]; then
+        echo "Excute failed with code: ${RTN}" >&2
+        exit $RTN
+    fi
 }
 
 function download() {
@@ -69,44 +48,60 @@ function download() {
     fi
 }
 
+function rm_ifsudo() {
+    if ! rm -rf "$1"; then
+        echo "Failed to clean without sudo."
+        sudo rm -rf "$1"
+    fi
+}
+
 # Main Process
 echo "OpenCV-Docker Build Script ${SCRIPT_VERSION}"
 echo
-check_dependency
+show_step "Checking dependency..."
+for i in $DEPENDENCY_LIST; do
+    if ! type $i 1> /dev/null 2> /dev/null; then
+        echo "ERROR: Command \"$i\" not found." >&2
+        echo "This script depends on:" >&2
+        echo -e "\t${DEPENDENCY_LIST}" >&2
+        exit -1
+fi;done
 
 show_step "Preparing source..."
-download "opencv-${VERSION}.zip" ${SOURCE_URL}
-download "opencv_contrib-${VERSION}.zip" ${CONTRIB_SOURCE_URL}
+download "opencv-${VERSION}.zip" "${SOURCE_URL}"
+download "opencv_contrib-${VERSION}.zip" "${CONTRIB_SOURCE_URL}"
 echo
 
-env_clean
+if [ $CLEAN_BUILD == 1 ]; then
+    show_step "Cleaning environment..."
+    rm_ifsudo "opencv-${VERSION}"
+    rm_ifsudo "opencv_contrib-${VERSION}"
+    rm_ifsudo "build"
+    rm $OUTPUT
+    docker container rm build-env
+    docker image rm opencv-docker:build
+    docker image rm opencv-docker
+fi
 
 show_step "Unzipping source..."
-unzip "opencv-${VERSION}.zip" > /dev/null
-unzip "opencv_contrib-${VERSION}.zip" > /dev/null
-
-# show_step "Building with container..."
-# echo "Building..."
-# chmod +x build/build.sh
-# # docker run --rm -it \
-# #     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
-# #     -e OD_BUILD_THREADS=$BUILD_THREADS \
-# #     $BASE_CONTAINER /bin/bash -c /build/build.sh
+unzip "opencv-${VERSION}.zip" > /dev/null || exec_check
+unzip "opencv_contrib-${VERSION}.zip" > /dev/null || exec_check
 
 show_step "Building basic image..."
-# docker build -t opencv-docker:build -f dockerfiles/build-env .
+docker build -t opencv-docker:build -f "${BUILD_DOCKERFILE}" . || exec_check
 
-show_step "Building OpenCV"
+show_step "Building OpenCV..."
 mkdir build
-cp $CMAKE_ENV build/env.cfg
-cp container_build.sh build/build.sh
-docker run --rm -it --privileged -u $(id -u) \
+cp ${CONTAINER_SCRIPT} build/build.sh
+docker run -it --name build-env \
     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
-    -e OD_BUILD_THREADS=$BUILD_THREADS \
-    opencv-docker:build /bin/bash -c /build/build.sh
+    -e OD_BUILD_THREADS=$BUILD_THREADS -e OD_CMAKE_ENV="${CMAKE_ENV}" \
+    opencv-docker:build /bin/bash -c /build/build.sh || exec_check
+docker commit build-env "opencv-docker:${SCRIPT_VERSION}-${VERSION}"
+docker image tag "opencv-docker:${SCRIPT_VERSION}-${VERSION}" opencv-docker:latest
 
-show_step "Building development environment..."
-docker build -t opencv-docker:latest -t opencv-docker:${SCRIPT_VERSION}-${VERSION} -f dockerfiles/build-env .
+show_step "Exporting image..."
+docker save opencv-docker:latest -o $OUTPUT || exec_check
 
 echo
 show_step "All done."

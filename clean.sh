@@ -1,9 +1,11 @@
 #!/bin/bash
 
 if ! source $1 1> /dev/null 2> /dev/null; then
-    echo "ERROR: Wrong config." >&2
-    echo "Usage: clean.sh CONFIG_PATH"
-    exit -3
+    echo "WARNING: No config." >&2
+    echo "Usage: clean.sh [CONFIG_PATH]"
+    echo "Now using default: Configs/linux-docker/build.cfg"
+    echo
+    source Configs/linux-docker/build.cfg
 fi
 
 function rm_ifsudo() {

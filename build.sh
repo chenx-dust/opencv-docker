@@ -1,9 +1,13 @@
 #!/bin/bash
 
+SCRIPT_VERSION="v0.2"
+
 if ! source $1 1> /dev/null 2> /dev/null; then
-    echo "ERROR: Wrong config." >&2
-    echo "Usage: clean.sh CONFIG_PATH"
-    exit -3
+    echo "WARNING: No config." >&2
+    echo "Usage: build.sh [CONFIG_PATH]"
+    echo "Now using default: Configs/linux-docker/build.cfg"
+    echo
+    source Configs/linux-docker/build.cfg
 fi
 
 PWD="$(pwd)"
@@ -17,6 +21,7 @@ STEP=0
 #       * Add proxy.
 #       * Add cuda support.
 #       * Exit when failing to exec in container
+#       * Add outside install.
 
 DEPENDENCY_LIST="unzip wget docker"
 
@@ -58,6 +63,8 @@ function rm_ifsudo() {
 # Main Process
 echo "OpenCV-Docker Build Script ${SCRIPT_VERSION}"
 echo
+echo "Now using config $1(${CONFIG_VERSION}) in ${CONFIG_PATH}"
+
 show_step "Checking dependency..."
 for i in $DEPENDENCY_LIST; do
     if ! type $i 1> /dev/null 2> /dev/null; then
@@ -85,18 +92,17 @@ unzip "opencv-${VERSION}.zip" > /dev/null || exec_check
 unzip "opencv_contrib-${VERSION}.zip" > /dev/null || exec_check
 
 show_step "Building basic image..."
-docker build -t opencv-docker:build -f "${BUILD_DOCKERFILE}" . || exec_check
+docker build -t opencv-docker:build-$CONFIG_VERSION -f "${BUILD_DOCKERFILE}" . || exec_check
 
 show_step "Building OpenCV..."
 mkdir build
 cp ${CONTAINER_SCRIPT} build/build.sh
 docker run -it --name build-env \
     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
-    -e OD_BUILD_THREADS=$BUILD_THREADS -e OD_CMAKE_ENV="${CMAKE_ENV}" \
-    opencv-docker:build /bin/bash -c /build/build.sh || exec_check
-docker container rm build-env
-docker commit build-env "opencv-docker:${SCRIPT_VERSION}-${VERSION}" || exec_check
-docker image tag "opencv-docker:${SCRIPT_VERSION}-${VERSION}" opencv-docker:latest || exec_check
+    -e OD_BUILD_THREADS=$BUILD_THREADS -e OD_CMAKE_ENV="${CMAKE_ENV}" -e OD_VERSION=$VERSION \
+    opencv-docker:build-$CONFIG_VERSION /bin/bash -c /build/build.sh || exec_check
+docker commit build-env "opencv-docker:${CONFIG_VERSION}-${VERSION}" || exec_check
+docker image tag "opencv-docker:${CONFIG_VERSION}-${VERSION}" opencv-docker:latest || exec_check
 docker container rm build-env
 
 show_step "Exporting image..."

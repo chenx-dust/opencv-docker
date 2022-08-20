@@ -1,19 +1,19 @@
-# 使用 USB 摄像头
+# 使用 USB 摄像头（已弃用）
 
 ## Windows 配置
 
-参考：
+### 参考：
 
 - [[Github] dorssel/usbipd-win/wiki/WSL-support](https://github.com/dorssel/usbipd-win/wiki/WSL-support)
 - [[CSDN] WSL2连接调用USB设备](https://blog.csdn.net/leiconghe/article/details/123877944)
 - [[StackOverflow] WSL - webcam USB : Can not open camera by index](https://stackoverflow.com/questions/72255353/wsl-webcam-usb-can-not-open-camera-by-index/72259612#72259612)
 
-已知问题：
+### 已知问题：
 
 * USBPcap （可能）存在兼容性问题，需要加入 `--force` 参数
 * 如要使用图形界面，请配置好 WSLg
 
-步骤：
+### 步骤：
 
 1. 跟从参考资料 [[StackOverflow] WSL - webcam USB : Can not open camera by index](https://stackoverflow.com/questions/72255353/wsl-webcam-usb-can-not-open-camera-by-index/72259612#72259612) 编译支持的内核，检查 WSL2 的内核版本（>=5.10.60.1）
 
@@ -62,3 +62,30 @@
        --device PATH_TO_VIDEO(e.g. /dev/video0) \
        opencv-docker:latest /bin/bash
    ```
+
+### 图形显示
+
+参见：[WSLg: Container](https://github.com/microsoft/wslg/blob/main/samples/container/Containers.md)
+
+```
+# 增加以下参数
+# -v /tmp/.X11-unix:/tmp/.X11-unix -v /mnt/wslg:/mnt/wslg \
+# -e DISPLAY=$DISPLAY -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+# -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR -e PULSE_SERVER=$PULSE_SERVER
+# 示例：
+
+docker run -itd -v /home:/home --device /dev/video0 \
+    -v /tmp/.X11-unix:/tmp/.X11-unix -v /mnt/wslg:/mnt/wslg \
+    -e DISPLAY=$DISPLAY -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+    -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR -e PULSE_SERVER=$PULSE_SERVER \
+    opencv-docker:latest /bin/bash
+```
+
+## Linux 配置
+
+```bash
+docker run -itd \
+      -v PATH_TO_SOURCE:PATH_TO_CONTAINER \
+      --device PATH_TO_VIDEO(e.g. /dev/video0) \
+      opencv-docker:latest /bin/bash
+```

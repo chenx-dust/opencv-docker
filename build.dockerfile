@@ -13,3 +13,4 @@ RUN sed -i "s@archive.ubuntu.com@${ARCHIVE_UBUNTU}@g" /etc/apt/sources.list \
     libavcodec-dev libavformat-dev libswscale-dev \
     ccache libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgtk-3-dev libavresample-dev \
     libgphoto2-dev libopenblas-dev doxygen libhdf5-dev libgoogle-glog-dev libgflags-dev
+ENTRYPOINT /bin/bash

@@ -97,6 +97,7 @@ docker run -it --name build-env \
 docker container rm build-env
 docker commit build-env "opencv-docker:${SCRIPT_VERSION}-${VERSION}" || exec_check
 docker image tag "opencv-docker:${SCRIPT_VERSION}-${VERSION}" opencv-docker:latest || exec_check
+docker container rm build-env
 
 show_step "Exporting image..."
 docker save opencv-docker:latest -o $OUTPUT || exec_check

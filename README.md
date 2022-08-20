@@ -20,5 +20,5 @@
 3. 执行脚本
 
    ```bash
-   ./build.sh
+   ./build.sh build.cfg
    ```

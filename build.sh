@@ -78,9 +78,6 @@ if [ $CLEAN_BUILD == 1 ]; then
     rm_ifsudo "opencv_contrib-${VERSION}"
     rm_ifsudo "build"
     rm $OUTPUT
-    docker container rm build-env
-    docker image rm opencv-docker:build
-    docker image rm opencv-docker
 fi
 
 show_step "Unzipping source..."
@@ -97,8 +94,9 @@ docker run -it --name build-env \
     -v $PWD/build:/build -v "${PWD}/opencv-${VERSION}":/opencv -v "${PWD}/opencv_contrib-${VERSION}":/opencv_contrib \
     -e OD_BUILD_THREADS=$BUILD_THREADS -e OD_CMAKE_ENV="${CMAKE_ENV}" \
     opencv-docker:build /bin/bash -c /build/build.sh || exec_check
-docker commit build-env "opencv-docker:${SCRIPT_VERSION}-${VERSION}"
-docker image tag "opencv-docker:${SCRIPT_VERSION}-${VERSION}" opencv-docker:latest
+docker container rm build-env
+docker commit build-env "opencv-docker:${SCRIPT_VERSION}-${VERSION}" || exec_check
+docker image tag "opencv-docker:${SCRIPT_VERSION}-${VERSION}" opencv-docker:latest || exec_check
 
 show_step "Exporting image..."
 docker save opencv-docker:latest -o $OUTPUT || exec_check
